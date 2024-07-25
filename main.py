@@ -1,47 +1,112 @@
-import json
+from datetime import datetime
+import urllib.parse
+from flask import Flask, redirect, request, jsonify, session
 import os
+import urllib
 from requests import post, get
-import base64
 from dotenv import load_dotenv
+
+app = Flask(__name__)
+app.secret_key = 'testing'
 
 load_dotenv()
 
-def get_token():
-    auth_string = f"{os.getenv('CLIENT_ID')}:{os.getenv('CLIENT_SECRET')}"
-    auth_bytes = auth_string.encode("utf-8")
+CLIENT_ID = os.getenv('CLIENT_ID')
+CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 
-    # Base 64 Encodding
-    auth_base64 = str(base64.b64encode(auth_bytes), "utf-8")
-    
-    url = "https://accounts.spotify.com/api/token"
-    headers = {
-        "Authorization": "Basic " + auth_base64,
-        "Content-Type": "application/x-www-form-urlencoded"
+REDIRECT_URL = 'http://localhost:5000/callback'
+TOKEN_URL = 'https://accounts.spotify.com/api/token'
+AUTH_URL = 'https://accounts.spotify.com/authorize'
+API_BASE_URL = 'https://api.spotify.com/v1/'
+
+
+@app.route('/')
+def index ():
+    return "Welcome to 3rsT <a href='/login'>Log in with Spoity</a>"
+
+@app.route('/login')
+def login():
+    scope = 'user-read-private user-read-email user-read-currently-playing'
+
+    params = {
+        'client_id' : CLIENT_ID,
+        'response_type': 'code',
+        'scope': scope,
+        'redirect_uri': REDIRECT_URL,
+        'show_dialog' : True
     }
 
-    data = {"grant_type" : "client_credentials"}
-    result = post(url, headers=headers, data=data)
-    json_result = json.loads(result.content)
-    token = json_result["access_token"]
-    return token
+    auth_url = f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
 
-def get_auth_header(token):
-    return {"Authorization": "Bearer " + token}
+    return redirect(auth_url)
 
-def get_current_track(token):
-    current_track_url = "https://api.spotify.com/v1/me/player/currently-playing"
-    headers = get_auth_header(token)
+@app.route('/callback')
+def callback():
+    if 'error' in request.args:
+        return jsonify({"error": request.args['error']})
+    
+    if 'code'in request.args:
+        req_body = {
+            'code' : request.args['code'],
+            'grant_type' : 'authorization_code',
+            'redirect_uri': REDIRECT_URL,
+            'client_id': CLIENT_ID,
+            'client_secret': CLIENT_SECRET
+        }
+        
+        response = post(TOKEN_URL, data=req_body)
+        token_info = response.json()
 
-    result = get(current_track_url, headers=headers)
-    json_result = json.loads(result.content)
-    return json_result
+        session['access_token'] = token_info['access_token']
+        session['refresh_token'] = token_info['refresh_token']
+        session['expires_at'] = datetime.now().timestamp() + token_info['expires_in']
 
+        return redirect('/current_song')
+    
+@app.route('/current_song')
+def get_current_song():
+    if 'access_token' not in session:
+        return redirect('/login')
 
-def main():
-    token = get_token()
-    print(get_current_track(token))
+    if datetime.now().timestamp() > session['expires_at']:
+        return redirect('/refresh-token')
+    
+    headers = {
+        'Authorization': f"Bearer {session['access_token']}",
+    }
 
+    response = get(API_BASE_URL + 'me/player/currently-playing', headers=headers)
+    current_song = response.json()
+
+    return jsonify({
+        'Song' : current_song['item']['name'],
+        'Album' : current_song['item']['album']['name'],
+        'Artist' : current_song['item']['album']['artists'][0]['name']
+
+    })
+    #return f"Artist: {current_song['item']['album']['artists']['name']}\nAlbum: {current_song['item']['album']['name']}\nSong: {current_song['item']['name']}"
+
+@app.route('/refresh-token')
+def refresh_token():
+    if 'refresh_token' not in session:
+        return redirect('/login')
+    
+    if datetime.now().timestamp() > session['expires_at']:
+        req_body = {
+            'grant_type' : 'refresh_token',
+            'refresh_token' : session['refresh_token'],
+            'client_id': CLIENT_ID,
+            'client_secret' : CLIENT_SECRET
+        }
+
+        response = post(TOKEN_URL, data=req_body)
+        new_token_info = response.json()
+
+        session['access_token'] = new_token_info['access_token']
+        session['expires_at'] = datetime.now().timestamp() + new_token_info['expires_in']
+
+        return redirect('/current_song')
 
 
 if __name__ == '__main__':
-    main()
+    app.run(host='0.0.0.0', debug=True)
