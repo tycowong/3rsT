@@ -5,7 +5,8 @@ import { AntDesign } from "@expo/vector-icons";
 import { FontAwesome5 } from "@expo/vector-icons";
 import ProfileScreen from "./screens/ProfileScreen";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { NavigationContainer } from "react-native-screens";
+import { NavigationContainer } from "@react-navigation/native";
+import LogInScreen from "./screens/LogInScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -51,6 +52,11 @@ function Navigation() {
   return (
     <NavigationContainer>
       <Stack.Navigator>
+        <Stack.Screen
+          name="LogIn"
+          component={LogInScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="Main"
           component={BottomTabs}

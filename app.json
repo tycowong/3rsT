@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "3rsT-React",
+    "name": "main",
     "slug": "3rsT-React",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -18,7 +18,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.spotify"
     },
     "web": {
       "favicon": "./assets/favicon.png"
