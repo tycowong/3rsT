@@ -5,12 +5,19 @@ import {
   Text,
   View,
 } from "react-native";
-import React from "react";
+import * as React from "react";
 import * as WebBrowser from "expo-web-browser";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5 } from "@expo/vector-icons";
-import { makeRedirectUri, useAuthRequest } from "expo-auth-session";
+import {
+  makeRedirectUri,
+  ResponseType,
+  useAuthRequest,
+} from "expo-auth-session";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Navigation from "../StackNavigator";
+import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -19,36 +26,61 @@ const discovery = {
   tokenEndpoint: "https://accounts.spotify.com/api/token",
 };
 
-function Authenticate() {
+const LogInScreen = () => {
   const [request, response, promptAsync] = useAuthRequest(
     {
-      issuer: "https://account.spotify.com",
-      clientId: process.env.CLIENT_ID,
-      socpes: ["user-read-currently-playing", "user-read-email"],
+      responseType: ResponseType.Token,
+      clientId: process.env.EXPO_PUBLIC_CLIENT_ID,
+      clientSecret: process.env.EXPO_PUBLIC_CLIENT_SECRET,
+      scopes: [
+        "user-read-private",
+        "user-read-currently-playing",
+        "user-read-email",
+      ],
       usePKCE: false,
-      redirectUri: "exp:localhost:19002/--/spotify-auth-callback",
+      redirectUri: "exp://192.168.50.90:8081",
     },
     discovery
   );
 
   React.useEffect(() => {
     if (response?.type === "success") {
-      const { code } = response.params;
+      const { access_token } = response.params;
+      storeData("@access_token", access_token);
+      getCurrentTrack(access_token);
     }
   }, [response]);
 
-  return (
-    <Button
-      disabled={!request}
-      title="Login"
-      onPress={() => {
-        promptAsync();
-      }}
-    />
-  );
-}
+  const storeData = async (key, token) => {
+    try {
+      await AsyncStorage.setItem(key, token);
+    } catch (error) {
+      console.log("Error", error);
+    }
+  };
 
-const LogInScreen = () => {
+  const getCurrentTrack = (access_token) => {
+    fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    })
+      .then((res) => res.json())
+      .then((response) => {
+        const currentTrack = response;
+        console.log("Song:", currentTrack["item"]["name"]);
+        console.log("Album:", currentTrack["item"]["album"]["name"]);
+        console.log(
+          "Artist:",
+          currentTrack["item"]["album"]["artists"][0]["name"]
+        );
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  };
+
   return (
     <LinearGradient
       colors={["#040306", "#131624"]}
@@ -81,6 +113,9 @@ const LogInScreen = () => {
         />
         <View style={{ height: 20 }}></View>
         <Pressable
+          onPress={() => {
+            promptAsync();
+          }}
           style={{
             padding: 10,
             marginLeft: "auto",

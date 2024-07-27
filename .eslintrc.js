@@ -3,6 +3,7 @@ module.exports = {
   extends: ["expo", "prettier"],
   plugins: ["prettier"],
   rules: {
+    trailingComma: "none",
     "prettier/prettier": [
       "error",
       {
