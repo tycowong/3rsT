@@ -10,6 +10,7 @@ import * as WebBrowser from "expo-web-browser";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5 } from "@expo/vector-icons";
+import { getRecommendation } from "../scripts/drink_recommendation";
 import {
   makeRedirectUri,
   ResponseType,
@@ -74,6 +75,12 @@ const LogInScreen = () => {
         console.log(
           "Artist:",
           currentTrack["item"]["album"]["artists"][0]["name"]
+        );
+        console.log(
+          getRecommendation(
+            currentTrack["item"]["name"],
+            currentTrack["item"]["album"]["artists"][0]["name"]
+          )
         );
       })
       .catch((error) => {
