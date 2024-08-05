@@ -1,10 +1,4 @@
-import {
-  Pressable,
-  SafeAreaViewComponent,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as React from "react";
 import * as WebBrowser from "expo-web-browser";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,8 +11,12 @@ import {
   useAuthRequest,
 } from "expo-auth-session";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Navigation from "../StackNavigator";
-import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
+import {
+  get_track,
+  current_artist,
+  current_song,
+} from "../scripts/get_current_track";
+import { useNavigation } from "@react-navigation/native";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -28,6 +26,7 @@ const discovery = {
 };
 
 const LogInScreen = () => {
+  const navigation = useNavigation();
   const [request, response, promptAsync] = useAuthRequest(
     {
       responseType: ResponseType.Token,
@@ -45,11 +44,17 @@ const LogInScreen = () => {
   );
 
   React.useEffect(() => {
-    if (response?.type === "success") {
-      const { access_token } = response.params;
-      storeData("@access_token", access_token);
-      getCurrentTrack(access_token);
+    async function getRec() {
+      if (response?.type === "success") {
+        const { access_token } = response.params;
+        storeData("@access_token", access_token);
+        await get_track(access_token);
+        await getRecommendation(current_song, current_artist);
+        navigation.navigate("Home");
+      }
     }
+
+    getRec();
   }, [response]);
 
   const storeData = async (key, token) => {
@@ -58,34 +63,6 @@ const LogInScreen = () => {
     } catch (error) {
       console.log("Error", error);
     }
-  };
-
-  const getCurrentTrack = (access_token) => {
-    fetch("https://api.spotify.com/v1/me/player/currently-playing", {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((response) => {
-        const currentTrack = response;
-        console.log("Song:", currentTrack["item"]["name"]);
-        console.log("Album:", currentTrack["item"]["album"]["name"]);
-        console.log(
-          "Artist:",
-          currentTrack["item"]["album"]["artists"][0]["name"]
-        );
-        console.log(
-          getRecommendation(
-            currentTrack["item"]["name"],
-            currentTrack["item"]["album"]["artists"][0]["name"]
-          )
-        );
-      })
-      .catch((error) => {
-        console.log(error);
-      });
   };
 
   return (

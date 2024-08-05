@@ -51,7 +51,7 @@ const Stack = createNativeStackNavigator();
 function Navigation() {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator initialRouteName="LogIn">
         <Stack.Screen
           name="LogIn"
           component={LogInScreen}
@@ -60,6 +60,11 @@ function Navigation() {
         <Stack.Screen
           name="Main"
           component={BottomTabs}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
